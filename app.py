@@ -130,10 +130,10 @@ def fetch_url_preview(url):
                 og_desc = re.sub(r'<[^>]+>', '', m.group(1)).strip()[:120]
                 break
 
-        return {'title': title[:80], 'image': og_img, 'description': og_desc, 'domain': domain}
+        return {'title': title[:80], 'image': og_img, 'description': og_desc, 'domain': domain, 'icon': shop_icon}
     except Exception as e:
         print(f"[fetch_url_preview] error: {e}")
-        return {'title': url[:60], 'image': '', 'description': '', 'domain': domain}
+        return {'title': url[:60], 'image': '', 'description': '', 'domain': domain, 'icon': shop_icon}
 
 # ── 上傳圖片到 Supabase Storage ──
 def upload_image(b64_data, filename, user_id):
