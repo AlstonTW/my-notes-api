@@ -73,6 +73,16 @@ def fetch_url_preview(url):
     import requests as req
     domain = re.sub(r'^https?://(www.)?', '', url).split('/')[0]
 
+    # IG 特別處理（貼文抓不到，顯示固定格式）
+    if re.search(r'instagram\.com/p/', url) or re.search(r'instagram\.com/tv/', url):
+        return {
+            'title': 'Instagram 貼文',
+            'image': '',
+            'description': '點擊查看 Instagram 內容',
+            'domain': 'instagram.com',
+            'icon': '📸'
+        }
+
     # YouTube 特別處理
     yt_match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)', url)
     if yt_match:
