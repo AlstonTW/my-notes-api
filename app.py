@@ -73,17 +73,7 @@ def fetch_url_preview(url):
     import requests as req
     domain = re.sub(r'^https?://(www.)?', '', url).split('/')[0]
 
-    # IG 特別處理（貼文抓不到，顯示固定格式）
-    if re.search(r'instagram\.com/p/', url) or re.search(r'instagram\.com/tv/', url):
-        return {
-            'title': 'Instagram 貼文',
-            'image': '',
-            'description': '點擊查看 Instagram 內容',
-            'domain': 'instagram.com',
-            'icon': '📸'
-        }
-
-    # YouTube 特別處理
+    # YouTube 特別處理（oEmbed，不走 Microlink）
     yt_match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)', url)
     if yt_match:
         vid_id = yt_match.group(1)
@@ -110,49 +100,32 @@ def fetch_url_preview(url):
             'video_id': vid_id,
         }
 
-    # 購物網站圖示
-    shopping_icons = {
-        'momoshop.com.tw': '🛍️', 'momo.dm': '🛍️',
-        'shopee.tw': '🧡', 'shopee.com': '🧡',
-        'pchome.com.tw': '💻', 'books.com.tw': '📚',
-        'amazon.com': '📦',
-    }
-    shop_icon = next((v for k, v in shopping_icons.items() if k in domain), '')
-
+    # 其他網址用 Microlink API（免費 50次/天，支援 momo、IG、FB 等）
     try:
-        r = req.get(url, timeout=8, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}, allow_redirects=True)
-        html = r.text[:15000]
-
-        title_m = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
-        title = re.sub(r'<[^>]+>', '', title_m.group(1)).strip() if title_m else url
-
-        og_img = ''
-        og_img = ''
-        for pat in [
-            r"property=['\"]og:image['\"][^>]+content=['\"]([^'\"]+)['\"]",
-            r"content=['\"]([^'\"]+)['\"][^>]+property=['\"]og:image['\"]",
-            r"name=['\"]twitter:image['\"][^>]+content=['\"]([^'\"]+)['\"]",
-        ]:
-            m = re.search(pat, html, re.IGNORECASE)
-            if m and m.group(1).startswith('http'):
-                og_img = m.group(1)
-                break
-
-        og_desc = ''
-        for pat in [
-            r"property=['\"]og:description['\"][^>]+content=['\"]([^'\"]+)['\"]",
-            r"name=['\"]description['\"][^>]+content=['\"]([^'\"]+)['\"]",
-            r"content=['\"]([^'\"]+)['\"][^>]+name=['\"]description['\"]",
-        ]:
-            m = re.search(pat, html, re.IGNORECASE)
-            if m:
-                og_desc = re.sub(r'<[^>]+>', '', m.group(1)).strip()[:120]
-                break
-
-        return {'title': title[:80], 'image': og_img, 'description': og_desc, 'domain': domain, 'icon': shop_icon}
+        ml = req.get(
+            f'https://api.microlink.io/?url={url}&screenshot=false',
+            timeout=15,
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        if ml.status_code == 200:
+            data = ml.json().get('data', {})
+            title   = (data.get('title') or data.get('description') or url)[:80]
+            image   = (data.get('image') or {}).get('url', '')
+            desc    = (data.get('description') or '')[:120]
+            real_url = data.get('url') or url  # 展開後的完整網址
+            return {
+                'title':  title,
+                'image':  image,
+                'description': desc,
+                'domain': domain,
+                'real_url': real_url,
+            }
     except Exception as e:
-        print(f"[fetch_url_preview] error: {e}")
-        return {'title': url[:60], 'image': '', 'description': '', 'domain': domain, 'icon': shop_icon}
+        print(f"[microlink] error: {e}")
+
+    # Microlink 失敗的 fallback
+    return {'title': url[:60], 'image': '', 'description': '', 'domain': domain}
+
 
 # ── 上傳圖片到 Supabase Storage ──
 def upload_image(b64_data, filename, user_id):
