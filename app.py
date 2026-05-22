@@ -110,8 +110,17 @@ def fetch_url_preview(url):
             'video_id': vid_id,
         }
 
+    # 購物網站圖示
+    shopping_icons = {
+        'momoshop.com.tw': '🛍️', 'momo.dm': '🛍️',
+        'shopee.tw': '🧡', 'shopee.com': '🧡',
+        'pchome.com.tw': '💻', 'books.com.tw': '📚',
+        'amazon.com': '📦',
+    }
+    shop_icon = next((v for k, v in shopping_icons.items() if k in domain), '')
+
     try:
-        r = req.get(url, timeout=8, headers={'User-Agent': 'Mozilla/5.0 (compatible; Twitterbot/1.0)'}, allow_redirects=True)
+        r = req.get(url, timeout=8, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}, allow_redirects=True)
         html = r.text[:15000]
 
         title_m = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
