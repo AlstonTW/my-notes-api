@@ -100,24 +100,27 @@ def fetch_url_preview(url):
             'video_id': vid_id,
         }
 
-    # 其他網址用 Microlink API（免費 50次/天，支援 momo、IG、FB 等）
+    # 其他網址用 Microlink API
     try:
-        ml = req.get(
-            f'https://api.microlink.io/?url={url}&screenshot=false',
-            timeout=15,
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
+        import urllib.parse
+        ml_url = f'https://api.microlink.io/?url={urllib.parse.quote(url, safe="")}&screenshot=false&video=false'
+        ml = req.get(ml_url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
         if ml.status_code == 200:
             data = ml.json().get('data', {})
-            title   = (data.get('title') or data.get('description') or url)[:80]
-            image   = (data.get('image') or {}).get('url', '')
-            desc    = (data.get('description') or '')[:120]
-            real_url = data.get('url') or url  # 展開後的完整網址
+            title    = (data.get('title') or data.get('description') or url)[:80]
+            image    = (data.get('image') or {}).get('url', '')
+            desc     = (data.get('description') or '')[:120]
+            real_url = data.get('url') or url
+            # IG/FB 若抓到的是登入頁，退回固定顯示
+            if real_url and ('login' in real_url or 'accounts/login' in real_url):
+                title = title or 'Instagram 貼文'
+                image = ''
+                real_url = url
             return {
-                'title':  title,
-                'image':  image,
+                'title':    title,
+                'image':    image,
                 'description': desc,
-                'domain': domain,
+                'domain':   domain,
                 'real_url': real_url,
             }
     except Exception as e:
