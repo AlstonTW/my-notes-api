@@ -108,21 +108,22 @@ def fetch_url_preview(url):
         title = re.sub(r'<[^>]+>', '', title_m.group(1)).strip() if title_m else url
 
         og_img = ''
+        og_img = ''
         for pat in [
-            r'property=["']og:image["'][^>]+content=["'](https?://[^"'\s]+)',
-            r'content=["'](https?://[^"'\s]+)["'][^>]+property=["']og:image["']',
-            r'name=["']twitter:image["'][^>]+content=["'](https?://[^"'\s]+)',
+            r"property=['\"]og:image['\"][^>]+content=['\"]([^'\"]+)['\"]",
+            r"content=['\"]([^'\"]+)['\"][^>]+property=['\"]og:image['\"]",
+            r"name=['\"]twitter:image['\"][^>]+content=['\"]([^'\"]+)['\"]",
         ]:
             m = re.search(pat, html, re.IGNORECASE)
-            if m:
+            if m and m.group(1).startswith('http'):
                 og_img = m.group(1)
                 break
 
         og_desc = ''
         for pat in [
-            r'property=["']og:description["'][^>]+content=["'](.*?)["']',
-            r'name=["']description["'][^>]+content=["'](.*?)["']',
-            r'content=["'](.*?)["'][^>]+name=["']description["']',
+            r"property=['\"]og:description['\"][^>]+content=['\"]([^'\"]+)['\"]",
+            r"name=['\"]description['\"][^>]+content=['\"]([^'\"]+)['\"]",
+            r"content=['\"]([^'\"]+)['\"][^>]+name=['\"]description['\"]",
         ]:
             m = re.search(pat, html, re.IGNORECASE)
             if m:
