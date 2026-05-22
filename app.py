@@ -71,21 +71,67 @@ def ai_classify_and_summarize(text, url=''):
 # ── 擷取網址預覽 ──
 def fetch_url_preview(url):
     import requests as req
+    domain = re.sub(r'^https?://(www.)?', '', url).split('/')[0]
+
+    # YouTube 特別處理
+    yt_match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)', url)
+    if yt_match:
+        vid_id = yt_match.group(1)
+        try:
+            oembed = req.get(f'https://www.youtube.com/oembed?url={url}&format=json', timeout=8)
+            if oembed.status_code == 200:
+                data = oembed.json()
+                return {
+                    'title': data.get('title', 'YouTube 影片')[:80],
+                    'image': f'https://img.youtube.com/vi/{vid_id}/mqdefault.jpg',
+                    'description': data.get('author_name', ''),
+                    'domain': 'youtube.com',
+                    'type': 'youtube',
+                    'video_id': vid_id,
+                }
+        except:
+            pass
+        return {
+            'title': 'YouTube 影片',
+            'image': f'https://img.youtube.com/vi/{vid_id}/mqdefault.jpg',
+            'description': '',
+            'domain': 'youtube.com',
+            'type': 'youtube',
+            'video_id': vid_id,
+        }
+
     try:
-        r = req.get(url, timeout=8, headers={'User-Agent':'Mozilla/5.0'}, allow_redirects=True)
-        html = r.text[:10000]
-        title = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE|re.DOTALL)
-        title = title.group(1).strip() if title else url
-        # og:image
-        og_img = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\'](.*?)["\']', html, re.IGNORECASE)
-        og_img = og_img.group(1) if og_img else ''
-        # og:description
-        og_desc = re.search(r'<meta[^>]+(?:property=["\']og:description["\']|name=["\']description["\'])[^>]+content=["\'](.*?)["\']', html, re.IGNORECASE)
-        og_desc = og_desc.group(1)[:100] if og_desc else ''
-        domain = re.sub(r'^https?://(www\.)?','',url).split('/')[0]
+        r = req.get(url, timeout=8, headers={'User-Agent': 'Mozilla/5.0 (compatible; Twitterbot/1.0)'}, allow_redirects=True)
+        html = r.text[:15000]
+
+        title_m = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
+        title = re.sub(r'<[^>]+>', '', title_m.group(1)).strip() if title_m else url
+
+        og_img = ''
+        for pat in [
+            r'property=["']og:image["'][^>]+content=["'](https?://[^"'\s]+)',
+            r'content=["'](https?://[^"'\s]+)["'][^>]+property=["']og:image["']',
+            r'name=["']twitter:image["'][^>]+content=["'](https?://[^"'\s]+)',
+        ]:
+            m = re.search(pat, html, re.IGNORECASE)
+            if m:
+                og_img = m.group(1)
+                break
+
+        og_desc = ''
+        for pat in [
+            r'property=["']og:description["'][^>]+content=["'](.*?)["']',
+            r'name=["']description["'][^>]+content=["'](.*?)["']',
+            r'content=["'](.*?)["'][^>]+name=["']description["']',
+        ]:
+            m = re.search(pat, html, re.IGNORECASE)
+            if m:
+                og_desc = re.sub(r'<[^>]+>', '', m.group(1)).strip()[:120]
+                break
+
         return {'title': title[:80], 'image': og_img, 'description': og_desc, 'domain': domain}
     except Exception as e:
-        domain = re.sub(r'^https?://(www\.)?','',url).split('/')[0]
+        print(f"[fetch_url_preview] error: {e}")
         return {'title': url[:60], 'image': '', 'description': '', 'domain': domain}
 
 # ── 上傳圖片到 Supabase Storage ──
