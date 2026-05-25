@@ -249,6 +249,25 @@ def get_notes():
         return jsonify({'success': True, 'notes': notes})
     return jsonify({'success': False, 'error': r.text[:200]})
 
+# ── 更新筆記（分類、標籤、備註）──
+@app.route('/api/notes/<note_id>', methods=['PATCH', 'OPTIONS'])
+def update_note(note_id):
+    if request.method == 'OPTIONS': return '', 204
+    import requests as req
+    body = request.json or {}
+    update = {}
+    if 'category' in body: update['category'] = body['category']
+    if 'tags'     in body: update['tags']     = body['tags']
+    if 'note'     in body: update['note']     = body['note']
+    if not update:
+        return jsonify({'success': False, 'error': '沒有要更新的欄位'})
+    r = req.patch(
+        f"{SUPABASE_URL}/rest/v1/notes?id=eq.{note_id}",
+        headers={**sb_headers(), 'Prefer': 'return=representation'},
+        json=update, timeout=15
+    )
+    return jsonify({'success': r.status_code in (200, 204)})
+
 # ── 刪除筆記 ──
 @app.route('/api/notes/<note_id>', methods=['DELETE', 'OPTIONS'])
 def delete_note(note_id):
